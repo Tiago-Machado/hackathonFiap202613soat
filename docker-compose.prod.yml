@@ -1,0 +1,48 @@
+# =============================================================================
+# Overlay de PRODUÇÃO. Coloca tudo atrás do Caddy (TLS automático) e deixa de
+# expor portas cruas de api/minio — todo tráfego externo passa pelo proxy.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Requer no .env: API_DOMAIN, S3_DOMAIN e
+#   S3_PUBLIC_ENDPOINT=https://${S3_DOMAIN}   (para as presigned URLs)
+#
+# Obs.: "!reset []" remove as portas herdadas do arquivo base (Compose 2.24+).
+# =============================================================================
+
+name: fiapx-video
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+      S3_DOMAIN: ${S3_DOMAIN}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    depends_on:
+      - api
+      - minio
+    networks: [edge, internal]
+
+  # Atrás do proxy: sem portas publicadas diretamente.
+  api:
+    ports: !reset []
+    networks: [internal]
+
+  minio:
+    ports: !reset []
+    networks: [internal]
+
+networks:
+  edge:
+    driver: bridge
+  internal:
+    driver: bridge
+
+volumes:
+  caddydata:

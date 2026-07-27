@@ -1,0 +1,43 @@
+# =============================================================================
+# Overlay de OBSERVABILIDADE (opt-in).
+#   docker compose -f docker-compose.yml -f docker-compose.observability.yml up
+#
+#   Prometheus: http://localhost:9090
+#   Grafana:    http://localhost:3000  (login: admin / ${GRAFANA_PASSWORD})
+# =============================================================================
+
+name: fiapx-video
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    ports:
+      - "9090:9090"
+    networks: [internal]
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks: [internal]
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  promdata:
+  grafanadata:

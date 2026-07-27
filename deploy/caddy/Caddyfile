@@ -1,0 +1,23 @@
+# Reverse proxy de produção. Caddy provê TLS (HTTPS) automático via Let's Encrypt.
+# É aqui que o "endpoint público do MinIO" ganha um host real e seguro: as
+# presigned URLs geradas pela aplicação apontam para https://{$S3_DOMAIN}, que o
+# browser do usuário acessa enquanto a comunicação interna continua em minio:9000.
+
+{$API_DOMAIN} {
+	reverse_proxy api:8080
+
+	# Cabeçalhos de segurança básicos
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+# Endpoint público do MinIO — só serve objetos via URL assinada (presigned).
+# A policy de privilégio mínimo + a expiração curta da URL é que garantem a segurança.
+{$S3_DOMAIN} {
+	reverse_proxy minio:9000
+}
