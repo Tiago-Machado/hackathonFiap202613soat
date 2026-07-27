@@ -10,6 +10,8 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
+const defaultRegion = "us-east-1"
+
 type Store struct {
 	internal *minio.Client
 	public   *minio.Client
@@ -20,6 +22,7 @@ func New(internalEndpoint, publicEndpoint, accessKey, secretKey, bucket string, 
 	internal, err := minio.New(internalEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: useSSL,
+		Region: defaultRegion,
 	})
 	if err != nil {
 		return nil, err
@@ -32,6 +35,7 @@ func New(internalEndpoint, publicEndpoint, accessKey, secretKey, bucket string, 
 	public, err := minio.New(publicURL.Host, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: publicURL.Scheme == "https",
+		Region: defaultRegion,
 	})
 	if err != nil {
 		return nil, err
