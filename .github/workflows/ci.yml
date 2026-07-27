@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: Build e Testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Verificar formatação
+        run: test -z "$(gofmt -l .)" || (echo "Arquivos não formatados:"; gofmt -l .; exit 1)
+
+      - name: Análise estática (go vet)
+        run: go vet ./...
+
+      - name: Compilar
+        run: go build ./...
+
+      - name: Testes com detecção de corrida
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Relatório de cobertura
+        run: go tool cover -func=coverage.out | tail -1
+
+  docker-build:
+    name: Build da Imagem
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build da imagem Docker
+        run: docker build -t fiapx-video:${{ github.sha }} .
