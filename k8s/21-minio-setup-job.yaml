@@ -1,0 +1,48 @@
+# Cria bucket, usuário escopado (privilégio mínimo) e regra de retenção.
+# Requer o ConfigMap "minio-policy":
+#   kubectl -n fiapx create configmap minio-policy --from-file=deploy/minio/app-policy.json
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-setup
+  namespace: fiapx
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              until mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do
+                echo 'aguardando MinIO...'; sleep 2;
+              done
+              mc mb --ignore-existing local/"$S3_BUCKET"
+              mc admin user add local "$APP_S3_ACCESS_KEY" "$APP_S3_SECRET_KEY" || true
+              mc admin policy create local app-rw /policies/app-policy.json || true
+              mc admin policy attach local app-rw --user "$APP_S3_ACCESS_KEY" || true
+              mc ilm rule add --expire-days "$RETENTION_DAYS" local/"$S3_BUCKET" || true
+              echo 'MinIO configurado (bucket + usuario escopado + retencao).'
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom: { secretKeyRef: { name: app-secret, key: MINIO_ROOT_USER } }
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: app-secret, key: MINIO_ROOT_PASSWORD } }
+            - name: APP_S3_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: app-secret, key: APP_S3_ACCESS_KEY } }
+            - name: APP_S3_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: app-secret, key: APP_S3_SECRET_KEY } }
+            - name: S3_BUCKET
+              valueFrom: { configMapKeyRef: { name: app-config, key: S3_BUCKET } }
+            - name: RETENTION_DAYS
+              valueFrom: { configMapKeyRef: { name: app-config, key: RETENTION_DAYS } }
+          volumeMounts:
+            - name: policy
+              mountPath: /policies
+      volumes:
+        - name: policy
+          configMap:
+            name: minio-policy

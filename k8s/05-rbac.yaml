@@ -1,0 +1,30 @@
+# Permite que os initContainers aguardem o Job de migrations concluir.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: job-waiter
+  namespace: fiapx
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: job-reader
+  namespace: fiapx
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: job-waiter-reads-jobs
+  namespace: fiapx
+subjects:
+  - kind: ServiceAccount
+    name: job-waiter
+    namespace: fiapx
+roleRef:
+  kind: Role
+  name: job-reader
+  apiGroup: rbac.authorization.k8s.io

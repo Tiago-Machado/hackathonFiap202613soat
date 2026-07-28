@@ -1,0 +1,30 @@
+# Aplica as migrations versionadas. Requer o ConfigMap "migrations":
+#   kubectl -n fiapx create configmap migrations --from-file=migrations/
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate
+  namespace: fiapx
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: migrate/migrate:latest
+          args:
+            - "-path=/migrations"
+            - "-database=$(DATABASE_URL)"
+            - "up"
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: app-secret, key: DATABASE_URL }
+          volumeMounts:
+            - name: migrations
+              mountPath: /migrations
+      volumes:
+        - name: migrations
+          configMap:
+            name: migrations

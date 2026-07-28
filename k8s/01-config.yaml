@@ -1,0 +1,41 @@
+# Valores NÃO sensíveis compartilhados por API e Worker.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: fiapx
+data:
+  REDIS_URL: redis://redis:6379/0
+  S3_INTERNAL_ENDPOINT: minio:9000
+  S3_PUBLIC_ENDPOINT: http://localhost:9000
+  S3_BUCKET: videos
+  S3_USE_SSL: "false"
+  SMTP_HOST: mailpit
+  SMTP_PORT: "1025"
+  PRESIGN_EXPIRY: "15m"
+  RETENTION_DAYS: "7"
+---
+# Valores sensíveis. Para demonstração usamos placeholders internamente
+# consistentes; em produção use um gerenciador de segredos (Sealed Secrets,
+# External Secrets, Vault), nunca versione segredos reais.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+  namespace: fiapx
+type: Opaque
+stringData:
+  POSTGRES_USER: fiapx
+  POSTGRES_PASSWORD: fiapx-demo-pass
+  POSTGRES_DB: fiapx
+  RABBITMQ_USER: fiapx
+  RABBITMQ_PASSWORD: fiapx-demo-pass
+  MINIO_ROOT_USER: admin
+  MINIO_ROOT_PASSWORD: minio-demo-root
+  APP_S3_ACCESS_KEY: fiapx-app
+  APP_S3_SECRET_KEY: fiapx-app-secret
+  S3_ACCESS_KEY: fiapx-app
+  S3_SECRET_KEY: fiapx-app-secret
+  JWT_SECRET: troque-por-um-segredo-de-ao-menos-32-bytes-aqui
+  DATABASE_URL: postgres://fiapx:fiapx-demo-pass@postgres:5432/fiapx?sslmode=disable
+  RABBITMQ_URL: amqp://fiapx:fiapx-demo-pass@rabbitmq:5672/

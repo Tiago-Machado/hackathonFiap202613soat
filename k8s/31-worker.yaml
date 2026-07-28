@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: fiapx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      initContainers:
+        - name: wait-migrate
+          image: bitnami/kubectl:latest
+          command: ["kubectl", "wait", "--for=condition=complete", "job/migrate", "-n", "fiapx", "--timeout=180s"]
+      containers:
+        - name: worker
+          image: fiapx-video:local
+          imagePullPolicy: IfNotPresent
+          command: ["./worker"]
+          envFrom:
+            - configMapRef: { name: app-config }
+            - secretRef: { name: app-secret }
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      serviceAccountName: job-waiter
+---
+# Escala o processamento conforme a carga de CPU — o requisito de escalabilidade
+# demonstrado de forma automática.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker
+  namespace: fiapx
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
