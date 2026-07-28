@@ -1,0 +1,30 @@
+# Worker: mesma imagem da API, mas command ./worker. Sem Service (nao recebe trafego).
+# replicas: 1 aqui e so o piso — o autoescalonamento fica em 51-worker-scaler-*.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: fiapx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      # Encerramento gracioso: o worker trata SIGTERM e drena o video em andamento.
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: worker
+          image: video-processor:local   # MESMA imagem da API
+          imagePullPolicy: IfNotPresent
+          command: ["./worker"]
+          envFrom:
+            - configMapRef: { name: fiapx-config }
+            - secretRef: { name: fiapx-secrets }
+          resources:
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits: { cpu: "1", memory: "512Mi" }

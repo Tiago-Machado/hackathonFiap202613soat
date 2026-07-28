@@ -1,0 +1,32 @@
+# Opcional. Requer um ingress controller (ex: ingress-nginx).
+# Para demo local, adicione ao /etc/hosts:
+#   127.0.0.1 api.local s3.local
+# e ajuste S3_PUBLIC_ENDPOINT no ConfigMap para http://s3.local
+# (as presigned URLs precisam bater com o host que o browser acessa).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fiapx
+  namespace: fiapx
+spec:
+  rules:
+    - host: api.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8080
+    - host: s3.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: minio
+                port:
+                  number: 9000

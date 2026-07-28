@@ -1,0 +1,56 @@
+# ============================================================================
+# AUTOESCALONAMENTO POR TAMANHO DE FILA — o argumento central de escalabilidade.
+# Responde direto ao requisito "em picos o sistema nao pode perder requisicao":
+# a fila do RabbitMQ absorve o burst; o KEDA sobe workers conforme o backlog
+# e derruba (ate zero) quando a fila esvazia. Escala pela CAUSA (trabalho
+# pendente), nao por um sintoma indireto como CPU.
+#
+# Requer o operador KEDA instalado:
+#   helm repo add kedacore https://kedacore.github.io/charts
+#   helm install keda kedacore/keda -n keda --create-namespace
+#
+# >>> VERIFICAR: 'queueName' deve ser EXATAMENTE o nome da fila que o
+#     rabbitmq.NewConsumer declara no seu codigo. Ajuste antes de aplicar.
+# ============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keda-rabbitmq
+  namespace: fiapx
+type: Opaque
+stringData:
+  # KEDA le a fila via AMQP usando esta connection string.
+  host: "amqp://fiapx:troque-esta-senha@rabbitmq:5672/"
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: rabbitmq-auth
+  namespace: fiapx
+spec:
+  secretTargetRef:
+    - parameter: host
+      name: keda-rabbitmq
+      key: host
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker
+  namespace: fiapx
+spec:
+  scaleTargetRef:
+    name: worker
+  minReplicaCount: 0          # escala a zero quando nao ha video na fila
+  maxReplicaCount: 10
+  pollingInterval: 15
+  cooldownPeriod: 60
+  triggers:
+    - type: rabbitmq
+      metadata:
+        protocol: amqp
+        queueName: video.process      # <<< AJUSTE para o nome real da sua fila
+        mode: QueueLength
+        value: "5"                    # ~5 mensagens pendentes por replica de worker
+      authenticationRef:
+        name: rabbitmq-auth

@@ -1,0 +1,27 @@
+# Config nao-sensivel lida por internal/config/config.go.
+# As chaves aqui sao EXATAMENTE as que o binario espera (nao as do .env.example).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fiapx-config
+  namespace: fiapx
+data:
+  REDIS_URL: "redis://redis:6379/0"
+
+  # MinIO SDK: endpoint interno em host:port (sem esquema), TLS controlado por S3_USE_SSL.
+  S3_INTERNAL_ENDPOINT: "minio:9000"
+  S3_USE_SSL: "false"
+
+  # Endpoint publico entra dentro das presigned URLs — precisa ser alcancavel pelo BROWSER,
+  # nao pelo DNS interno do cluster. Para demo local: port-forward svc/minio 9000:9000.
+  # Em producao: https://s3.seu-dominio.com
+  S3_PUBLIC_ENDPOINT: "http://localhost:9000"
+
+  S3_BUCKET: "videos"
+  S3_ACCESS_KEY: "fiapx-app"
+
+  SMTP_HOST: "mailpit"
+  SMTP_PORT: "1025"
+
+  RETENTION_DAYS: "7"
+  PRESIGN_EXPIRY: "15m"
